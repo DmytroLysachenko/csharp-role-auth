@@ -1,6 +1,17 @@
 @RoleClaimsApp_HostAddress = http://localhost:5171
 
-GET {{RoleClaimsApp_HostAddress}}/weatherforecast/
+### Inspect current identity (no headers = anonymous)
+GET {{RoleClaimsApp_HostAddress}}/api/users/me
 Accept: application/json
 
-###
+### Role-based check: requires Admin role
+GET {{RoleClaimsApp_HostAddress}}/api/users/role-based
+Accept: application/json
+X-User-Name: alice
+X-User-Role: Admin
+
+### Claim-based check: requires Department=IT
+GET {{RoleClaimsApp_HostAddress}}/api/users/claim-based
+Accept: application/json
+X-User-Name: bob
+X-Department: IT

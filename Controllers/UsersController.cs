@@ -1,57 +1,36 @@
-using System.Security.Claims;
+using System.Linq;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 [Route("api/[controller]")]
 [ApiController]
+[Authorize] // Require authentication by default; individual policies below add detail.
 public class UsersController : ControllerBase
 {
-    [HttpGet("role-based")]
-    public IActionResult GetUserByRole()
+    [HttpGet("me")]
+    [AllowAnonymous]
+    public IActionResult WhoAmI()
     {
-        var user = new ClaimsPrincipal(
-            new ClaimsIdentity(
-                new[]
-                {
-                    new Claim(ClaimTypes.Name, "TestUser"),
-                    new Claim(ClaimTypes.Role, "Admin"),
-                },
-                "mock"
-            )
+        // Echo back the identity built by DemoAuthenticationHandler so you can see which claims are flowing in.
+        var claims = User.Claims.Select(c => new { c.Type, c.Value });
+
+        return Ok(
+            new
+            {
+                authenticated = User.Identity?.IsAuthenticated ?? false,
+                name = User.Identity?.Name,
+                claims
+            }
         );
-
-        HttpContext.User = user;
-
-        if (user.IsInRole("Admin"))
-        {
-            return Ok("Access granted to Admin role.");
-        }
-        else
-        {
-            return Forbid("No access");
-        }
     }
+
+    [HttpGet("role-based")]
+    [Authorize(Roles = "Admin")]
+    public IActionResult GetUserByRole() =>
+        Ok($"Access granted to Admin role. Hello, {User.Identity?.Name ?? "unknown"}.");
 
     [HttpGet("claim-based")]
-    public IActionResult GetUserByClaim()
-    {
-        var user = new ClaimsPrincipal(
-            new ClaimsIdentity(
-                new[] { new Claim(ClaimTypes.Name, "TestUser"), new Claim("Department", "IT") },
-                "mock"
-            )
-        );
-
-        HttpContext.User = user;
-
-        var hasClaim = user.HasClaim(c => c.Type == "Department" && c.Value == "IT");
-
-        if (hasClaim)
-        {
-            return Ok("Access granted to IT department user.");
-        }
-        else
-        {
-            return Forbid("No access");
-        }
-    }
+    [Authorize(Policy = "RequireITDepartment")]
+    public IActionResult GetUserByClaim() =>
+        Ok($"Access granted to IT department user. Hello, {User.Identity?.Name ?? "unknown"}.");
 }

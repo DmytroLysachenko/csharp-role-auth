@@ -1,9 +1,22 @@
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddOpenApi();
+
+builder.Services
+    .AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = DemoAuthenticationHandler.SchemeName;
+        options.DefaultChallengeScheme = DemoAuthenticationHandler.SchemeName;
+    })
+    // Demo auth reads claims from headers to keep the learning flow simple.
+    .AddScheme<AuthenticationSchemeOptions, DemoAuthenticationHandler>(
+        DemoAuthenticationHandler.SchemeName,
+        _ => { }
+    );
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseInMemoryDatabase("TestDB")
@@ -18,7 +31,8 @@ builder
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("RequreITDepartment", policy => policy.RequireClaim("Department", "IT"));
+    // Require users to have the Department claim set to IT.
+    options.AddPolicy("RequireITDepartment", policy => policy.RequireClaim("Department", "IT"));
 });
 
 var app = builder.Build();
@@ -29,10 +43,11 @@ if (app.Environment.IsDevelopment())
     app.MapOpenApi();
 }
 
+app.UseHttpsRedirection();
+
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
-
-app.UseHttpsRedirection();
 
 app.Run();
